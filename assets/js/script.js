@@ -1,5 +1,7 @@
  // URL de la API de productos
  const API_URL = 'https://fakestoreapi.com/products';
+// Array para almacenar los productos en el carrito
+  let carrito = [];
 // Clase Producto
  class Producto {
     constructor (id,nombre,precio,categoria,descripcion,imagen){
@@ -22,8 +24,10 @@ async function obtenerProductos() {
       throw new Error ('Error en la solicitud');
     }
     const data = await response.json();
-    // Mapear los datos a instancias de la clase Producto
-   const productos = data.map (item => new Producto(item.id, item.title, item.price, item.category, item.description, item.image));
+    // Mapear los datos a instancias de la clase Producto. Uso de Desestructuración
+   const productos = data.map(({id, title, price, category, description, image}) => 
+    new Producto(id, title, price, category, description, image)
+);
    return productos;
   } catch (error){
     console.error('Error al obtener los productos:', error);
@@ -56,6 +60,7 @@ function mostrarProductos(productos) {
             -webkit-box-orient: vertical;
             font-size: 0.9rem;
           ">${producto.descripcion}</p>
+          <p style="flex-grow:1;">Category: <strong>${producto.categoria}</strong></p> 
           <p class="card-text mt-auto"><strong>$${producto.precio}</strong></p>
           <button class="btn btn-primary mt-2" onclick="agregarAlCarrito(${producto.id}, '${producto.nombre}', ${producto.precio})">Agregar al carrito</button>
         </div>
@@ -63,6 +68,76 @@ function mostrarProductos(productos) {
     `;
     containerProductos.appendChild(card);
   });
+}
+//funcion para agregar productos al carrito
+async function agregarAlCarrito(id,nombre,precio){
+  const productosEnCarrito = carrito.find(p => p.id === id);
+  if (productosEnCarrito){
+    productosEnCarrito.cantidad += 1;
+  }
+  else {
+    carrito.push({id, nombre, precio, cantidad: 1});
+  }
+  actualizarCarrito();
+}
+// Función para actualizar el carrito en el DOM
+function actualizarCarrito(){
+  //manipulación del DOM
+  const contador = document.getElementById('contador-carrito');
+  const lista = document.getElementById('lista-carrito');
+  const total = document.getElementById('total-carrito');
+  const carritoVacio = document.getElementById('carrito-vacio');
+  const carritoContenido = document.getElementById('carrito-contenido');
+  // Actualizar el contador del carrito
+  const totalProductos = carrito.reduce((sum,p) => sum + p.cantidad,0);
+  contador.textContent = totalProductos;
+
+  if (carrito.length === 0){
+    carritoVacio.style.display = 'block';
+    carritoContenido.style.display = 'none';
+  }else {
+    carritoVacio.style.display = 'none';
+    carritoContenido.style.display = 'block';
+  }
+  lista.innerHTML = ''; 
+  // Mostrar los productos en el carrito
+  let subtotal = 0;
+    carrito.forEach(p => {
+      subtotal += p.precio * p.cantidad;
+      const li = document.createElement('li');
+      li.classList.add('d-flex', 'justify-content-between', 'mb-2');
+      li.innerHTML = `
+        <span>${p.nombre} x ${p.cantidad}</span>
+        <hr>
+        <span>$${(p.precio * p.cantidad).toFixed(2)}</span>   
+      `;
+      lista.appendChild(li);
+    });
+
+    total.textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('final-envio').textContent = `$${subtotal.toFixed(2)}`;
+  }
+
+  //funcion para finalizar compra
+  function finalizarCompra() {
+  if (carrito.length === 0) {
+    alert("Tu carrito está vacío. Agrega productos antes de finalizar la compra.");
+    return;
+  }
+
+  const total = carrito.reduce((sum, p) => sum + p.precio * p.cantidad, 0);
+
+  // Actualiza el contenido
+  const modalBody = document.getElementById('modal-body-compra');
+  modalBody.innerHTML = `
+    <p>¡Gracias por tu compra!</p>
+    <p>Total: <strong>$${total.toFixed(2)}</strong></p>
+  `;
+
+  carrito = [];
+  actualizarCarrito();
+  const compraModal = new bootstrap.Modal(document.getElementById('compraModal'));
+  compraModal.show();
 }
 
 // Función para inicializar la aplicación
